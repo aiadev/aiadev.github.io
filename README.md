@@ -1,5 +1,9 @@
 # aiadev.github.io
-aia|dev
-alejandra inés aguirre
-neuroscientist | developer | musician
-i ♥ computer vision + artificial intelligence + interaction design + creative coding + generative art
+aia|dev <br />
+alejandra inés aguirre <br />
+neuroscientist | developer | musician <br /><br />
+computer_vision<br />
+artificial_intelligence<br />
+interaction_design<br />
+creative_coding<br />
+generative_art
