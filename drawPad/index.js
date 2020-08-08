@@ -31,13 +31,10 @@ var svg = d3.select("#svgContainer").append("svg")
     .attr("id", "svg")
 	.attr("width", "100%")
 	.attr("height","100%")
- // 	.call(d3.drag()
-//		  .on("start", startDrawing)
-//		  .on("drag", draw)
-//		  .on("end", endDrawing))
-	.on("touchstart", startDrawing)
-	.on("touchmove", draw)
-	.on("touchend", endDrawing);
+  	.call(d3.drag()
+		  .on("start", startDrawing)
+		  .on("drag", draw)
+		  .on("end", endDrawing));
 
 var canvasGroup = svg.append("g").attr("id", "canvasGroup");
 
@@ -62,65 +59,10 @@ var prevRect = prevGroup.append("rect")
 	.attr("fill", "transparent")
 	.attr("visibility", "hidden");
 
-// setea el punto de inicio de la forma segun el modo seleccionado
-function startDrawing() {
-	
-	
-	// VIENDO TOUCH
-	// Prevents the browsers default behaviour (such as opening a link), but does not stop the event from bubbling up the DOM.
-//        d3.event.preventDefault();
-	//Prevents the event from bubbling up the DOM, but does not stop the browsers default behaviour.
- //       d3.event.stopPropagation();
-
-	var t = d3.touches(this);
-	startPos[0] = t[0].x;
-	startPos[1] = t[0].y;
-	
-	console.log("DEBUGGING OK"); //
-	console.log("TOUCH START = "+t);
-
-	
-	startPos[0] = d3.event.x;
-	startPos[1] = d3.event.y;	
-	endPos[0] = d3.event.x;
-	endPos[1] = d3.event.y;
-
-    console.log(".. DRAWING " + buttonData[modeSel].id)
-	console.log("   Start position: " + startPos);
-	
-	prevLine.attr("visibility", modeSel == 0 ? "visible" : "hidden");
-	prevRect.attr("visibility", modeSel == 1 ? "visible" : "hidden");
-}
-
 // previsualizacion de la forma segun el modo seleccionado
 function draw() {	
-	
-//	var breakDebuggerButton = document.getElementById('break-debugger');
-//breakDebuggerButton.addEventListener('click', function onClick(event) {
-//  debugger;
-//});
-	// VIENDO TOUCH
-	// Prevents the browsers default behaviour (such as opening a link), but does not stop the event from bubbling up the DOM.
-        //d3.event.preventDefault();
-	//Prevents the event from bubbling up the DOM, but does not stop the browsers default behaviour.
-        d3.event.stopPropagation();
-        var t = d3.touches(this);
-	
-
-
-//	endPos[0] = d3.event.x;
-//	endPos[1] = d3.event.y;
-
-	startPos[0] = t[1].x;
-	startPos[1] = t[1].y;	
-	endPos[0] = t[2].x;
-	endPos[1] = t[2].y;
-	
-	console.log("DRAWING TOUCHES");
-	console.log("obj = " + t);
-	
-	
-	/////
+	endPos[0] = d3.event.x;
+	endPos[1] = d3.event.y;
 	
 	if (modeSel == 0) {
 		prevLine
@@ -135,24 +77,6 @@ function draw() {
 			.attr("width", Math.abs(startPos[0]-endPos[0])) 
 			.attr("height", Math.abs(startPos[1]-endPos[1]));		
 	}
-}
-
-
-// finaliza el dibujo de la forma
-function endDrawing() {
-	
-//	endPos[0] = d3.event.x;
-//	endPos[1] = d3.event.y;
-    console.log("   End position: "+ endPos);
-
-        var t = d3.touches(this);	
-	console.log("END DRAWING TOUCHES");
-	console.log("obj = " + t);
-
-		    prevLine.attr("visibility", "hidden");
-	prevRect.attr("visibility", "hidden");
-
-	(modeSel == 0) ? drawNewLine() : drawNewRect();
 }
 
 // setup herramientas/modos del menu
@@ -188,6 +112,32 @@ function selectTool (d,i){
 function clearCanvas() {
     lineGroup.selectAll("line").remove();
     rectGroup.selectAll("rect").remove();
+}
+
+// setea el punto de inicio de la forma segun el modo seleccionado
+function startDrawing() {
+	startPos[0] = d3.event.x;
+	startPos[1] = d3.event.y;	
+	endPos[0] = d3.event.x;
+	endPos[1] = d3.event.y;
+
+    console.log(".. DRAWING " + buttonData[modeSel].id)
+	console.log("   Start position: " + startPos);
+	
+	prevLine.attr("visibility", modeSel == 0 ? "visible" : "hidden");
+	prevRect.attr("visibility", modeSel == 1 ? "visible" : "hidden");
+}
+
+// finaliza el dibujo de la forma
+function endDrawing() {
+	endPos[0] = d3.event.x;
+	endPos[1] = d3.event.y;
+    console.log("   End position: "+ endPos);
+    
+	prevLine.attr("visibility", "hidden");
+	prevRect.attr("visibility", "hidden");
+
+	(modeSel == 0) ? drawNewLine() : drawNewRect();
 }
 
 // dibuja una linea en el canvas
