@@ -40,7 +40,7 @@ var svg = d3.select("#svgContainer").append("svg")
 // CLICK
 function clicked(d, i) { 
 	// diferencia un click de un drag
-//	if (d3.event.defaultPrevented) return; 
+	if (d3.event.defaultPrevented) return; 
 }
 
 // DRAG START
