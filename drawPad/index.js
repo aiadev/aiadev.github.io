@@ -117,7 +117,7 @@ function draw() {
 	endPos[1] = t[2].y;
 	
 	console.log("DRAWING TOUCHES");
-	console.log("obj = " "+t]);
+	console.log("obj = " "+t);
 	
 	
 	/////
@@ -144,8 +144,12 @@ function endDrawing() {
 //	endPos[0] = d3.event.x;
 //	endPos[1] = d3.event.y;
     console.log("   End position: "+ endPos);
-    
-	prevLine.attr("visibility", "hidden");
+
+        var t = d3.touches(this);	
+	console.log("END DRAWING TOUCHES");
+	console.log("obj = " "+t);
+
+		    prevLine.attr("visibility", "hidden");
 	prevRect.attr("visibility", "hidden");
 
 	(modeSel == 0) ? drawNewLine() : drawNewRect();
