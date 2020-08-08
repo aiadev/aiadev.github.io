@@ -35,33 +35,34 @@ var svg = d3.select("#svgContainer").append("svg")
 		  .on("start", startDraw)
 		  .on("drag", dragDraw)
 		  .on("end", endDraw))
-	.on("click", clicked); // dragged
+	.on("click", clicked) // dragged
+	.on("mouseup", null)
+	.on("mousedown", null);
 
 // CLICK
 function clicked(d, i) { 
 	// diferencia un click de un drag
+	console.log("click");
 	if (d3.event.defaultPrevented) return; 
 }
 
 // DRAG START
-function startDraw(d,t) {
-//    d3.select(this).attr("stroke", "black");
-	startPos[0] = d3.event.x;
-	startPos[1] = d3.event.y;	
-	endPos[0] = d3.event.x;
-	endPos[1] = d3.event.y;
+function startDraw() {
+	startPos[0] = endPos[0] = d3.event.x;
+	startPos[1] = endPos[1] = d3.event.y;	
 
 	console.log(".. DRAWING " + buttonData[modeSel].id)
-	console.log("   Start position: " + startPos);
+	console.log("   Start at " + startPos);
 
 	prevLine.attr("visibility", modeSel == 0 ? "visible" : "hidden");
 	prevRect.attr("visibility", modeSel == 1 ? "visible" : "hidden");
 }
 
 // DRAGGING
-function dragDraw(d,t) {
+function dragDraw() {
 	endPos[0] = d3.event.x;
 	endPos[1] = d3.event.y;
+
 	if (modeSel == 0) {
 		prevLine
 			.attr("x1", startPos[0])
@@ -78,10 +79,8 @@ function dragDraw(d,t) {
 }
 
 // DRAG END
-function endDraw(d,t) {
-	endPos[0] = d3.event.x;
-	endPos[1] = d3.event.y;
-	console.log("   End position: "+ endPos);
+function endDraw() {
+	console.log("   End at   "+ endPos);
 
 	prevLine.attr("visibility", "hidden");
 	prevRect.attr("visibility", "hidden");
