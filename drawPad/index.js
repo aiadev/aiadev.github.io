@@ -117,7 +117,7 @@ function draw() {
 	endPos[1] = t[2].y;
 	
 	console.log("DRAWING TOUCHES");
-	console.log("obj = "+t);
+	console.log("obj = " + t);
 	
 	
 	/////
