@@ -147,7 +147,7 @@ function endDrawing() {
 
         var t = d3.touches(this);	
 	console.log("END DRAWING TOUCHES");
-	console.log("obj = " "+t);
+	console.log("obj = " + t);
 
 		    prevLine.attr("visibility", "hidden");
 	prevRect.attr("visibility", "hidden");
