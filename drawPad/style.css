@@ -14,8 +14,8 @@ body{
 }
 
 .guiButton {
-    width: 20vh;
-    height: 20vh;
+    width: 11vh;
+    height: 11vh;
     margin: 5px;
     font-size: 15px;
     border: 2px solid gainsboro;
