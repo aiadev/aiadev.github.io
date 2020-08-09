@@ -1,4 +1,4 @@
-// DrawPad_v0.5
+// DrawPad_v0.7
 
 // configuracion de herramientas del menu
 var buttonData = [{
@@ -66,44 +66,36 @@ var rectGroup 	= drawGroup.append("g").attr('id', "rectGroup");
 // previsualizacion
 var prevGroup	= canvasGroup.append("g").attr("id", "prevGroup");
 
-// previsualizacion de linea
-var prevLine = prevGroup.append("line")
-	.attr("id", "prevLine")
-	.classed("prevForm", true)
-	.attr("visibility", "hidden");
-
-// previsualizacion de rectangulo
-var prevRect = prevGroup.append("rect")
-	.attr("id", "prevRect")
-	.classed("prevForm", true)
-	.attr("fill", "transparent")
-	.attr("visibility", "hidden");
-
 // DRAW iniciar dibujo
 function startDraw() {
 	startPos[0] = endPos[0] = d3.event.x;
 	startPos[1] = endPos[1] = d3.event.y;	
-
+	
+	if (modeSel == 0) {
+		prevGroup.append("line").classed("prevForm", true);
+	} else {
+		prevGroup.append("rect").classed("prevForm", true).attr("fill", "transparent");
+	}
+	
 	console.log(".. DRAWING " + buttonData[modeSel].id)
 	console.log("   Start at " + startPos);
-
-	prevLine.attr("visibility", modeSel == 0 ? "visible" : "hidden");
-	prevRect.attr("visibility", modeSel == 1 ? "visible" : "hidden");
 }
 
 // DRAW previsualizar dibujo
 function dragDraw() {
 	endPos[0] = d3.event.x;
 	endPos[1] = d3.event.y;
-
+	
 	if (modeSel == 0) {
-		prevLine
+		// previsualizacion de linea
+		prevGroup.select(".prevForm")
 			.attr("x1", startPos[0])
 			.attr("y1", startPos[1])
 			.attr("x2", endPos[0])
 			.attr("y2", endPos[1]);		
 	} else {
-		prevRect 
+		// previsualizacion de rectangulo
+		prevGroup.select(".prevForm")
 			.attr("x", d3.min([startPos[0], endPos[0]]))
 			.attr("y", d3.min([startPos[1], endPos[1]]))
 			.attr("width", Math.abs(startPos[0]-endPos[0])) 
@@ -114,10 +106,7 @@ function dragDraw() {
 // DRAW finalizar previsualizacion y dibujar forma definitiva
 function endDraw() {
 	console.log("   End at   "+ endPos);
-
-	prevLine.attr("visibility", "hidden");
-	prevRect.attr("visibility", "hidden");
-
+	d3.selectAll(".prevForm").remove();
 	(modeSel == 0) ? drawNewLine() : drawNewRect();
 }
 
