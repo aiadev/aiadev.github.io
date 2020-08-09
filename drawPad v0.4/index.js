@@ -1,4 +1,4 @@
-// DrawPad v0.4
+// DrawPad_v0.5
 
 // configuracion de herramientas del menu
 var buttonData = [{
@@ -81,10 +81,6 @@ var prevRect = prevGroup.append("rect")
 
 // DRAW iniciar dibujo
 function startDraw() {
-	
-	// para que no disparen otros eventos del mouse
-	d3.event.stopPropagation(); 
-	
 	startPos[0] = endPos[0] = d3.event.x;
 	startPos[1] = endPos[1] = d3.event.y;	
 
@@ -117,10 +113,6 @@ function dragDraw() {
 
 // DRAW finalizar previsualizacion y dibujar forma definitiva
 function endDraw() {
-
-	// para que no se disparen otros eventos del mouse
-	d3.event.stopPropagation(); 
-	
 	console.log("   End at   "+ endPos);
 
 	prevLine.attr("visibility", "hidden");
