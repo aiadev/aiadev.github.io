@@ -1,0 +1,604 @@
+<!--
+- UNIR TEXTURAS
+- ARMAR CIELO CON NORMALES INVERTIDAS
+- PONER TEXTURA EN TERRENO
+- ARMAR ALGO PARECIDO A UN HELICOPTERO
+-->
+
+<!doctype html>
+<head>
+    <script src="js/jquery.js"></script>
+    <script src="js/gl-matrix-3.3.0.js"></script>    
+    <script src="js/webgl-utils.js"></script>
+    <script src="js/dat.gui.js"></script>
+    
+    <script src="modulos/ControlHelicoptero.js"></script>
+    <script src="modulos/Herencia.js"></script>
+    <script src="modulos/Curva.js"></script>
+    <script src="modulos/SuperficieDeBarrido.js"></script>
+    <script src="modulos/Malla.js"></script>>
+    <script src="modulos/Objeto3D.js"></script>
+
+    <script src="modulos/SuperficieDeBarridoNew.js"></script>
+    <script src="modulos/Objeto3Dnew.js"></script>
+
+    <script src="modulos/Terreno.js"></script>
+    <script src="modulos/Cielo.js"></script>
+    <script src="modulos/ControlDeCamara.js"></script>
+
+    <style>
+        html{
+            height: 100%;
+        }
+        body{
+            padding: 0;
+            margin: 0;
+            height: 100%;;
+        }
+
+        #myCanvas{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+
+</head>
+
+<body>
+           
+    <canvas id="myCanvas" >
+        Your browser does not support the HTML5 canvas element.
+    </canvas>
+
+    <script>
+
+        var vertexShaderFile="vertex-shader.glsl";
+        var modo="edges"; // wireframe, smooth, edges
+        var shaderProgram;
+        var time=0;
+
+        var gl;
+        var mat4=glMatrix.mat4;
+        var mat3=glMatrix.mat3;
+        var vec3=glMatrix.vec3;   
+        var vec4=glMatrix.vec4;          
+            
+        var $canvas=$("#myCanvas");
+        var aspect = $("#myCanvas").width() / $("#myCanvas").height();
+
+        var distanciaCamara=5; //3;
+        var alturaCamara=3;
+        var velocidadAngular=0; //0.15;
+        
+        var lighting="true";
+
+        var vertexShaderSource;
+        var fragmentShaderSource;
+
+        var matrizProyeccion = mat4.create();            
+        var matrizVista = mat4.create();            
+        // var matrizModelado = mat4.create();  
+
+        // OBJETOS EN ESCENA INICIO
+
+        var camara = new APP.ControlDeCamara();
+        var radio1 = 20; // orbital primera
+        var radio2 = 5;
+        var radio3 = 15; // orbit giro
+        var camaraActual = 1;
+
+        var orbitalAlfa = 0;
+        var orbitalBeta = Math.PI*0.5;
+        var factorVelocidad = 0.01;
+
+        var isMouseDown = false;
+        var actualEvent;
+
+        var mouse = { x: $canvas.width() * 0.5,
+                      y: $canvas.height()* 0.75 };
+
+        var prevClientX = 0;
+        var prevClientY = 0;
+                
+        $("#myCanvas").mousemove( function(e) {
+            mouse.x = e.clientX || e.pageX;
+            mouse.y = e.cientY || e.pageY
+        });
+
+        $("#myCanvas").mousedown( function(event) {
+            isMouseDown = true;
+        });
+
+        $("#myCanvas").mouseup( function(event) {
+            isMouseDown = false;
+        });
+
+        // $('body').on("keydown", function(event){
+        //     if (event.keyCode == 67) {
+        //         alert ("presionaron la tecla C");
+        // }
+        // });
+
+        var controlHelicoptero = new APP.ControlHelicoptero();
+
+        var _terreno = new APP.Terreno();       
+        var _cielo = new APP.Cielo();
+
+        var _escena = new APP.Objeto3Dnew();       
+        var _origen = new APP.Objeto3Dnew();
+
+        var _helicoptero = new APP.Objeto3Dnew();
+        var _cabina  = new APP.Objeto3Dnew();
+        var _helice = new Array(); // Objeto3Dnew       
+        var _timon = new Array(); // Objeto3Dnew
+        var _soporteCamara = new Array(); // Objeto3Dnew;
+
+
+        // brazo 1,2,3,4
+        // timones cola rotan segun direccion de giro
+        // apoyo
+
+        //Durante el vuelo las hélices deben orientar su eje hacia el frente 
+        // a medida que aumenta la velocidad horizontal y 
+        // orientarse con su eje hacia arriba para aterrizar. 
+        // Los timones de cola deben rotar de acuerdo a la dirección de giro del vehículo 
+        // Se deberán usar las teclas ASDW para controlar el desplazamiento horizontal,
+        // las teclas QE para ascender y 
+        // la tecla H para retraer/extender los brazos de las hélices
+        
+        
+        ///////
+
+        function initGL(canvas) {
+
+            try {
+                gl = canvas.getContext("webgl");
+                gl.canvas.width=$canvas.width();
+                gl.canvas.height=$canvas.height();                
+            } catch (e) {
+                console.error(e);
+            }
+            if (!gl) {
+                alert("Could not initialise WebGL, sorry :-(");
+            }
+        }
+
+        function loadShaders(){
+
+            $.when(loadVS(), loadFS()).done(function(res1,res2){
+                //this code is executed when all ajax calls are done     
+                webGLStart();
+            });
+
+            function loadVS() {
+                return  $.ajax({
+                    url: "shaders/"+vertexShaderFile,
+                    success: function(result){
+                        vertexShaderSource=result;
+                    }
+                });
+            }   
+
+            function loadFS() {
+                return  $.ajax({
+                    url: "shaders/fragment-shader.glsl",
+                    success: function(result){
+                        fragmentShaderSource=result;
+                    }
+                });
+            }
+        }
+        
+        function getShader(gl,code,type) {
+
+            var shader;
+
+            if (type == "fragment") 
+                shader = gl.createShader(gl.FRAGMENT_SHADER);
+            else // "vertex"
+                shader = gl.createShader(gl.VERTEX_SHADER);
+            
+            gl.shaderSource(shader, code);
+            gl.compileShader(shader);
+    
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+                return null;
+            }    
+            return shader;
+        }
+        
+        function onResize(){
+            gl.canvas.width=$canvas.width();
+            gl.canvas.height=$canvas.height();
+            aspect=$canvas.width()/$canvas.height();
+        }
+
+        function getShaderSource(url) {
+
+            var req = new XMLHttpRequest();
+            req.open("GET", url, false);
+            req.send(null);
+            return (req.status == 200) ? req.responseText : null;
+
+        }; 
+
+        function initShaders() {
+    
+            var fragmentShader= getShader(gl, vertexShaderSource,"vertex");
+            var vertexShader= getShader(gl, fragmentShaderSource,"fragment");
+
+            shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+    
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                alert("Could not initialise shaders");
+            }
+    
+            gl.useProgram(shaderProgram);
+    
+            shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aPosition");
+            gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+    
+            shaderProgram.textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aUv");
+            gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
+    
+            shaderProgram.vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aNormal");
+            gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);
+    
+            shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+            shaderProgram.mMatrixUniform = gl.getUniformLocation(shaderProgram, "uMMatrix");
+            shaderProgram.vMatrixUniform = gl.getUniformLocation(shaderProgram, "uVMatrix");
+            shaderProgram.nMatrixUniform = gl.getUniformLocation(shaderProgram, "uNMatrix");
+            shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
+            shaderProgram.useLightingUniform = gl.getUniformLocation(shaderProgram, "uUseLighting");
+            shaderProgram.ambientColorUniform = gl.getUniformLocation(shaderProgram, "uAmbientColor");
+            shaderProgram.frameUniform = gl.getUniformLocation(shaderProgram, "time");
+            shaderProgram.lightingDirectionUniform = gl.getUniformLocation(shaderProgram, "uLightPosition");
+            shaderProgram.directionalColorUniform = gl.getUniformLocation(shaderProgram, "uDirectionalColor");
+
+        }
+    
+        function setShaderUniforms() {
+            
+            // seteo matrizModelado dentro de objeto3dnew
+            // gl.uniformMatrix4fv(shaderProgram.mMatrixUniform, false, matrizModelado);
+            
+            // gl.uniformMatrix4fv(shaderProgram.vMatrixUniform, false, matrizVista);
+            // gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, matrizProyeccion);
+    
+            // var normalMatrix = mat3.create();
+            // mat3.fromMat4(normalMatrix,matrizModelado); // normalMatrix= (inversa(traspuesta(matrizModelado)));
+    
+            // mat3.invert(normalMatrix, normalMatrix);
+            // mat3.transpose(normalMatrix,normalMatrix);
+
+            // gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, normalMatrix);
+
+        }
+              
+        function webGLStart() {
+
+            var canvas = document.getElementById("myCanvas");
+
+            initGL(canvas);
+            initShaders();
+
+            // CREAR OBJETOS EN ESCENA
+            initScene(); 
+
+            gl.clearColor(66.2, 0.2, 0.2, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.enable(gl.DEPTH_TEST);
+    
+            $(window).on("resize",onResize);
+            initMenu();
+            tick();
+
+        }
+    
+        function initMenu(){
+
+            var gui = new dat.GUI();
+            gui.add(window, "distanciaCamara",0.01,5).step(0.01);
+            gui.add(window, "alturaCamara",-4,4).step(0.01);;
+            gui.add(window, "modo",["wireframe","smooth","edges"]);
+            gui.add(window, "velocidadAngular",0, 1).step(0.01);
+
+        }
+
+        function tick() { 
+
+            requestAnimFrame(tick); // REFRESH
+
+            time+=1/60;
+            // acumulo rotaciones en matrizModelado		        
+            //mat4.rotate(matrizModelado, matrizModelado, 0.03*velocidadAngular, [0, 1, 0]);
+
+            updateScene();
+            drawScene();
+
+        }
+
+        function drawScene() {
+        
+            // Se configura el viewport dentro del "canvas". 
+            // En este caso se utiliza toda el área disponible
+            gl.viewport(0, 0, $canvas.width(), $canvas.height());
+            
+            // Se habilita el color de borrado para la pantalla (Color Buffer) y otros buffers
+            gl.clearColor(0.2,0.2,0.2,1);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    
+            // Se configura la matriz de proyección
+            mat4.identity(matrizProyeccion);
+            mat4.perspective(matrizProyeccion, 30, aspect, 0.1, 100.0);
+            mat4.scale(matrizProyeccion,matrizProyeccion,[1,-1,1]); // parche para hacer un flip de Y, parece haber un bug en glmatrix
+               
+            // Se inicializan las variables asociadas con la Iluminación
+            
+            gl.uniform1f(shaderProgram.frameUniform, time/10.0 );
+            gl.uniform3f(shaderProgram.ambientColorUniform, 0.6, 0.6, 0.6 );
+            gl.uniform3f(shaderProgram.directionalColorUniform, 1.2, 1.1, 0.7);
+            gl.uniform1i(shaderProgram.useLightingUniform,(lighting=="true"));
+
+            var lightPosition = [10.0,0.0, 3.0];  
+            gl.uniform3fv(shaderProgram.lightingDirectionUniform, lightPosition);   
+            
+            // Se actualiza la matriz de vista de acuerdo a la camara activa
+            matrizVista = camara.update();                     
+
+            setShaderUniforms();
+
+            // ESCENA TP
+            // cielo.draw();
+
+            _escena.draw();
+
+        }
+        
+        function moverCamaraOrbital() {
+
+            var deltaX=0;
+            var deltaY=0;
+
+            if (prevClientX) deltaX = mouse.x - prevClientX;
+            if (prevClientY) deltaY = mouse.y - prevClientY;
+            
+            prevClientX = mouse.x;
+            prevClientY = mouse.y;
+
+            orbitalAlfa = orbitalAlfa + deltaX * factorVelocidad;
+            orbitalBeta = orbitalBeta - deltaY * factorVelocidad; // cambiado para manejar modelado
+
+            if (orbitalBeta < 0) orbitalBeta = 0;
+            if (orbitalBeta > Math.PI) orbitalBeta = Math.PI;
+
+            var pos1 = vec3.fromValues(radio1 * Math.sin(orbitalAlfa) * Math.sin(orbitalBeta),
+            radio1 * Math.cos(orbitalBeta), radio1 * Math.cos(orbitalAlfa)* Math.sin(orbitalBeta));
+
+            var pos2 = vec3.fromValues(radio2 * Math.sin(orbitalAlfa) * Math.sin(orbitalBeta),
+            radio2 * Math.cos(orbitalBeta), radio2 * Math.cos(orbitalAlfa)* Math.sin(orbitalBeta));
+
+            _soporteCamara[0].setPosition(pos1); // radio1
+
+            _soporteCamara[4].setPosition(pos2); // radio2
+
+        }
+
+
+        function updateScene() {
+            
+            // terreno.update();
+
+            // HELICOPTERO
+
+            controlHelicoptero.update();
+
+            var p = vec3.fromValues(controlHelicoptero.getPosition().x,controlHelicoptero.getPosition().y,controlHelicoptero.getPosition().z);            
+
+            _helicoptero.setPosition(p);
+            _helicoptero.setRotationY(controlHelicoptero.getYaw());
+            
+            _cabina.setRotationZ(controlHelicoptero.getPitch());
+            _cabina.setRotationX(controlHelicoptero.getRoll());
+
+            var v = controlHelicoptero.getSpeed()*500;
+            for (var i = 0; i < _helice.length; i++) {
+
+                _helice[i].setRotationY(v);
+
+            }
+            
+            var a = -controlHelicoptero.getAngle();
+            if ( a < -Math.PI*0.2) a = -Math.PI*0.2;
+            else if ( a > Math.PI*0.2) a = Math.PI*0.2;
+
+            for (var i = 0; i < _timon.length; i++) {
+
+                _timon[i].setRotationY(a);
+
+            }
+
+
+
+
+            // CAMARA
+
+            if (isMouseDown) moverCamaraOrbital();
+
+            var c = vec3.fromValues(radio3 * Math.sin(time) * Math.sin(70),
+            radio3 * Math.cos(70), radio3 * Math.cos(time)* Math.sin(70));
+
+            _soporteCamara[7].setPosition(c);
+
+            
+        }
+
+        function initCamaras() {
+
+            var camaraPosition = [
+                [0, 0, 0],      // 1 orbital origen
+                [-4, 3, 0],   // 2 trasera
+                [0, 1.5, -3],   // 3 lateral
+                [0, 10, 0],     // 4 superior
+                [0, 0, 0],      // 5 orbital helicoptero
+                [5, 1, 0],    // 6 cinematog
+                [4, 1, 0],    // 7 primera pers frente
+                [0, 0, 0],      // 8 orbital helicoptero giro continuo
+            ];
+
+            for (var i = 0; i < camaraPosition.length; i++) {
+
+                var s = new APP.Objeto3Dnew();
+                s.setPosition(camaraPosition[i]);
+                s.setName("soporteCamara[" + i + "]");
+                _soporteCamara.push(s);
+
+            }
+
+            // la camara 0 no va con el helicoptero, sino ligada a origen
+            for (var i = 1; i < _soporteCamara.length; i++) {
+
+                _helicoptero.addChild(_soporteCamara[i]);
+
+            }
+
+            // Vista orbital: gira alrededor del origen mediante al arrastre del mouse en X e Y
+            camara.addCam(_soporteCamara[0], _origen, [0,1,0]);      // 1 orbital a origen
+            camara.addCam(_soporteCamara[1], _helicoptero, [0,1,0]); // 2 trasera
+            camara.addCam(_soporteCamara[2], _helicoptero, [0,1,0]); // 3 lateral
+            camara.addCam(_soporteCamara[3], _helicoptero, [1,0,0]); // 4 superior
+            camara.addCam(_soporteCamara[4], _helicoptero, [0,1,0]);      // 5 extra orbital a helicoptero 
+            camara.addCam(_soporteCamara[5], _soporteCamara[6], [0,1,0]); // 6 extra frente cinematografica
+            camara.addCam(_soporteCamara[6], _soporteCamara[5], [0,1,0]); // 7 extra 1a pers frente
+            camara.addCam(_soporteCamara[7], _helicoptero, [0,1,0]); // 7 extra 1a pers frente
+
+            matrizVista = camara.getCam(camaraActual);
+
+        }
+
+        function initHelices() {
+            
+            var position = [
+                [-0.5,  0.5,  -0.5],
+                [-0.5,  0.5,   0.5],
+                [ 0.5,  0.5,   0.5],
+                [ 0.5,  0.5,  -0.5]
+            ];
+
+            var sbHelix = new APP.SuperficieDeBarridoNew(10,10); // filas cols segmentos
+            sbHelix.setRecorrido("bezier2", [ [-1.2,0,0],[1,0,0],[1.2,0,0] ]);
+            sbHelix.setHasTapaBottomTop(true,true);
+
+            for (var i = 0; i < position.length; i++) {
+                var h = new APP.Objeto3Dnew(); 
+                h.setBuffers(sbHelix.getBuffers());
+                h.setPosition(position[i]);
+                h.setScale([0.3, 0.3, 0.3]);
+                h.setTexture("./img/helice.jpg");
+                h.setName("helice[" + i + "]");
+                _helice.push(h);
+            }
+
+        }
+
+        function initTimones() {
+            
+            var position = [
+                [-0.8,  0.4,  -0.3], // prof / alto / lado 
+                [-0.8,  0.4,   0.3]
+            ];
+
+            var puntosB2t_circ_helice = [ [-1,1,0], [1,1,0],[1,-1,0],[-1,-1,0],[-1,1,0], [1,1,0] ];            
+            var sbTimon = new APP.SuperficieDeBarridoNew(3,4); // filas cols segmentos
+            sbTimon.setForma("bspline2-tramos", puntosB2t_circ_helice);       
+            sbTimon.setRecorrido("bezier2", [ [-1.2,0,0],[1.2,0,0],[1.2,0,0] ]);
+            sbTimon.setHasTapaBottomTop(true,true);
+
+            for (var i = 0; i < position.length; i++) {
+                var t = new APP.Objeto3Dnew(); 
+                t.setBuffers(sbTimon.getBuffers());
+                t.setPosition(position[i]);
+                t.setScale([-0.6, 0.3, 0.1]);
+                t.setName("timon[" + i + "]");
+                _timon.push(t);
+            }
+
+        }
+
+        function initScene() {
+
+            _escena.setName("escena");
+            _terreno.provisorio();    
+            _cielo.provisorio();
+
+            _origen.setName("_origen");
+            _origen.setPosition([0,0,0]);
+
+            _helicoptero.setName("_helicoptero");
+            _helicoptero.setPosition([0,0,0]);
+            
+            // HELICOPTERO
+
+            var puntosB2t_circ = [ [-1,1,0], [1,1,0],[1,-1,0],[-1,-1,0],[-1,1,0], [1,1,0] ];            
+            var bez2lin1y = [ [-0.5,0.2,0], [0.5,1,0], [0.5,0.2,0]];
+  
+            var sbCabina = new APP.SuperficieDeBarridoNew(10,10); // filas cols segmentos 
+            sbCabina.setForma("bspline2-tramos", puntosB2t_circ);        
+
+            sbCabina.setRecorrido("bezier2", [ [-1.2,0,0],[1,0,0],[1.2,0,0] ]);
+            sbCabina.setHasTapaBottomTop(true,true);
+            sbCabina.setEscalaForma("bezier2", bez2lin1y);   
+
+            _cabina.setName("_cabina");
+            _cabina.setBuffers(sbCabina.getBuffers());
+            _cabina.setPosition([0,1,0]);
+            // _cabina.setTexture("./img/uvgrid.jpg");
+            _cabina.setTexture("./img/cabina.jpg");
+            _cabina.setScale([1,1,1]);
+            _cabina.updateMatrizModelado();
+
+            initHelices();
+            initTimones();
+            initCamaras();    
+
+
+            // ARBOL
+
+            _escena.addChild(_origen);
+                _origen.addChild(_terreno);
+                _origen.addChild(_cielo);
+            
+            _escena.addChild(_helicoptero);
+                _helicoptero.addChild(_cabina);
+
+            for (var i = 0; i < _helice.length; i++) {
+
+                _cabina.addChild(_helice[i]);
+
+            }
+
+            for (var i = 0; i < _timon.length; i++) {
+
+                _cabina.addChild(_timon[i]);
+
+            }
+
+
+        }
+
+        // cuando el documento HTML esta completo, iniciamos la aplicación
+        $(document).ready(function(){
+
+            loadShaders();
+
+        })
+
+    </script>
+    
+</body>
+</html>
