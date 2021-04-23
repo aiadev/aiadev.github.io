@@ -1,24 +1,24 @@
 let size = 50;
 let sound;
-let inColor;
+let alpha = 1;
 
 function setup() {
   sound = loadSound('assets/sound/sound.wav');
   createCanvas(400, 400);
-  inColor = color(255,0,0);
 }
 
 function draw() {
-  background(220);
-  if (sound.isPlaying()) {
-    fill(0,255,0);
-  } else {
-    fill(255,0,0);
-  }
+  background(255);
+  fill(255);
   circle(mouseX,mouseY,size);
+  if (sound.isPlaying()) {
+    alpha = sound.currentTime()/sound.duration();
+    fill(0,255-255*alpha);
+    circle(mouseX,mouseY,size-1);
+  }
 }
 
-function mousePressed() {
+function mouseClicked() {
   size*=1.1;
-  sound.play();
+  if (sound.isLoaded()) sound.play();
 }
