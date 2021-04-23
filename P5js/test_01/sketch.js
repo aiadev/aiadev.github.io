@@ -11,7 +11,7 @@ function draw() {
   background(255);
   fill(255);
   circle(mouseX,mouseY,size);
-  if (sound.isPlaying()) {
+  if (sound.isLoaded() && sound.isPlaying()) {
     alpha = sound.currentTime()/sound.duration();
     fill(0,255-255*alpha);
     circle(mouseX,mouseY,size-1);
